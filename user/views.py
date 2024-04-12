@@ -8,6 +8,9 @@ from user.serializers import RegistrationSerializer,ChangePasswordSerializer,Ver
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .utils import send_code_to_user,verify_otp
+from django.http import JsonResponse
+
+import requests
 
 
 from django.contrib.auth import get_user_model
@@ -123,3 +126,24 @@ def code_verification(request):
 
 
 
+
+
+# Create your views here.
+
+@api_view(['GET'])
+def jokeView(request):
+    url = "https://world-of-jokes1.p.rapidapi.com/v1/jokes"
+    querystring = {"limit":"100","page":"1","sortBy":"score:desc"}
+    
+    headers = {
+        "X-RapidAPI-Key": "875e36e896msh9e84973856854aap18d4e5jsnc10cd914eabe",
+        "X-RapidAPI-Host": "world-of-jokes1.p.rapidapi.com"
+    }
+
+    
+    response = requests.get(url, headers=headers, params=querystring)
+    print(response.json())
+    if response.status_code == 200:
+        data = response.json()
+    return JsonResponse(data)
+            
