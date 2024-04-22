@@ -14,5 +14,7 @@ urlpatterns = [
     path('user_creation/', views.registerUser, name='user_creation'),
     path('change-password/', views.changePassword, name='change-password'),
     path('verify_code/', views.code_verification, name='verify_code'),
+    path('resend-otp/', views.resend_otp, name='resend-otp'),
     path('jokes/', views.jokeView, name='jokes'),
+    path('motivation/', views.motivationView, name='motivation'),
 ]

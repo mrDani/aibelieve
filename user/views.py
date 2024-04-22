@@ -9,6 +9,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .utils import send_code_to_user,verify_otp
 from django.http import JsonResponse
+from .models import OneTimePassword
 
 import requests
 
@@ -30,19 +31,25 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Add custom claims
         token['user_id'] = user.id
         token['first_name'] = user.first_name
+        token['last_name'] = user.last_name
         token['email'] = user.email
         # ...
 
         return token
     
-# validate method is overridden to add extra responses to the data returned by the parent class's validate method.
+
+
     def validate(self, attrs):
-        # call validates the provided attributes using the parent class's validate method and returns the validated data.
+        # Call validates the provided attributes using the parent class's validate method and returns the validated data.
         data = super().validate(attrs)
 
         # Add extra responses
         # Adds the user id to the response
         data.update({'user_id': self.user.id})
+
+        # Add full name to the response
+        full_name = f"{self.user.first_name} {self.user.last_name}"
+        data.update({'full_name': full_name})
 
         # Finally, the updated data dictionary is returned.
         return data
@@ -85,21 +92,41 @@ def changePassword(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def code_verification(request):
-    serializer = VerificationCodeSerializer(data=request.data)
-    if serializer.is_valid():
-        code = serializer.validated_data['code']
-        user_email = request.user.email
+    if request.method == 'POST':
+        otp_code = request.data.get('code') # Extract the OTP code from the request data
+        if not otp_code:
+            return Response({'message': 'Passcode not provided'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user_code_obj = OneTimePassword.objects.get(code=otp_code)# Try to find a OneTimePassword object with the provided OTP code
+            user = user_code_obj.user
 
-        if verify_otp(user_email, code):
-            return Response({'message': 'Code is valid', 'is_verified': True})
-        else:
-            return Response({'message': 'Invalid code or expired'}, status=400)
-    else:
-        return Response(serializer.errors, status=400)
+            if not user.is_verified:
+                # If the user is not verified, mark them as verified and save
+                user.is_verified = True
+                user.save()
+                return Response({'message': 'Account email verified successfully'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'message': 'Code is invalid, user already verified'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        except OneTimePassword.DoesNotExist:
+            return Response({'message': 'Invalid passcode'}, status=status.HTTP_400_BAD_REQUEST)
 
+        
+@api_view(['POST'])
+def resend_otp(request):
+    email = request.data.get('email')
+    if not email:
+        return Response({'error': 'Email parameter is missing'}, status=status.HTTP_400_BAD_REQUEST)
 
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    send_result = send_code_to_user(user.email)
+    if "Failed" in send_result:
+        return Response({'error': send_result}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # @api_view(['POST'])
@@ -132,18 +159,40 @@ def code_verification(request):
 
 @api_view(['GET'])
 def jokeView(request):
-    url = "https://world-of-jokes1.p.rapidapi.com/v1/jokes"
-    querystring = {"limit":"100","page":"1","sortBy":"score:desc"}
-    
+    url = "https://world-of-jokes1.p.rapidapi.com/v1/jokes/joke-of-the-day"
+
     headers = {
         "X-RapidAPI-Key": "875e36e896msh9e84973856854aap18d4e5jsnc10cd914eabe",
         "X-RapidAPI-Host": "world-of-jokes1.p.rapidapi.com"
     }
 
+
     
-    response = requests.get(url, headers=headers, params=querystring)
+    response = requests.get(url, headers=headers)
     print(response.json())
     if response.status_code == 200:
         data = response.json()
     return JsonResponse(data)
+
+
+
+
+@api_view(['GET'])
+def motivationView(request):
+    url = "https://quotes-inspirational-quotes-motivational-quotes.p.rapidapi.com/quote"
+
+    querystring = {"token":"ipworld.info"}
+
+    headers = {
+        "X-RapidAPI-Key": "875e36e896msh9e84973856854aap18d4e5jsnc10cd914eabe",
+        "X-RapidAPI-Host": "quotes-inspirational-quotes-motivational-quotes.p.rapidapi.com"
+    }
+
+    response = requests.get(url, headers=headers, params=querystring)
+
+    print(response.json()) 
+    if response.status_code == 200:
+        data = response.json()
+    return JsonResponse(data)
+ 
             
