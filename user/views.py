@@ -8,6 +8,10 @@ from user.serializers import RegistrationSerializer,ChangePasswordSerializer,Ver
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .utils import send_code_to_user,verify_otp
+from django.http import JsonResponse
+from .models import OneTimePassword
+
+import requests
 
 
 from .models import OneTimePassword
@@ -34,9 +38,10 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         return token
     
-# validate method is overridden to add extra responses to the data returned by the parent class's validate method.
+
+
     def validate(self, attrs):
-        # call validates the provided attributes using the parent class's validate method and returns the validated data.
+        # Call validates the provided attributes using the parent class's validate method and returns the validated data.
         data = super().validate(attrs)
 
         # Add extra responses
@@ -45,6 +50,10 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         full_name = f"{self.user.first_name} {self.user.last_name}"
         data.update({'full_name': full_name})
         
+
+        # Add full name to the response
+        full_name = f"{self.user.first_name} {self.user.last_name}"
+        data.update({'full_name': full_name})
 
         # Finally, the updated data dictionary is returned.
         return data
@@ -137,3 +146,46 @@ def resend_otp(request):
 
 
 
+
+
+# Create your views here.
+
+@api_view(['GET'])
+def jokeView(request):
+    url = "https://world-of-jokes1.p.rapidapi.com/v1/jokes/joke-of-the-day"
+
+    headers = {
+        "X-RapidAPI-Key": "875e36e896msh9e84973856854aap18d4e5jsnc10cd914eabe",
+        "X-RapidAPI-Host": "world-of-jokes1.p.rapidapi.com"
+    }
+
+
+    
+    response = requests.get(url, headers=headers)
+    print(response.json())
+    if response.status_code == 200:
+        data = response.json()
+    return JsonResponse(data)
+
+
+
+
+@api_view(['GET'])
+def motivationView(request):
+    url = "https://quotes-inspirational-quotes-motivational-quotes.p.rapidapi.com/quote"
+
+    querystring = {"token":"ipworld.info"}
+
+    headers = {
+        "X-RapidAPI-Key": "875e36e896msh9e84973856854aap18d4e5jsnc10cd914eabe",
+        "X-RapidAPI-Host": "quotes-inspirational-quotes-motivational-quotes.p.rapidapi.com"
+    }
+
+    response = requests.get(url, headers=headers, params=querystring)
+
+    print(response.json()) 
+    if response.status_code == 200:
+        data = response.json()
+    return JsonResponse(data)
+ 
+            
