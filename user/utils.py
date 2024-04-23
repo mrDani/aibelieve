@@ -19,19 +19,11 @@ def send_code_to_user(email):
     email_subject = "One-time password for Email verification"
     email_body = f"Hi {user.first_name}, thanks for signing up on {current_site}. Please verify your email using this one-time password: {otp_code}"
 
-<<<<<<< HEAD
-    # Save OTP to the database & # Update or create the OTP
-=======
     # Save OTP to the database
->>>>>>> a7d983ff760f3645686ea062f7c5a21b144bfc45
     otp_record, created = OneTimePassword.objects.update_or_create(
         user=user,
         defaults={'code': otp_code, 'created_at': timezone.now()}
     )
-<<<<<<< HEAD
-    # otp_record, created = OneTimePassword.objects.create(user=user, code=otp_code)
-=======
->>>>>>> a7d983ff760f3645686ea062f7c5a21b144bfc45
 
     # Send email
     try:
@@ -54,11 +46,7 @@ def verify_otp(email, code):
         otp_record = OneTimePassword.objects.get(user__email=email, code=code)
         # Check if the OTP is expired (e.g., validity period of 30 minutes)
         if otp_record.created_at < timezone.now() - timezone.timedelta(minutes=30):
-<<<<<<< HEAD
-            return "OTP has expired"  
-=======
             return False  # OTP has expired
->>>>>>> a7d983ff760f3645686ea062f7c5a21b144bfc45
         else:
             user = otp_record.user
             user.is_verified = True

@@ -19,10 +19,7 @@ urlpatterns = [
     path('change-password/', views.changePassword, name='change-password'),
     path('verify_code/', views.code_verification, name='verify_code'),
     path('resend-otp/', views.resend_otp, name='resend-otp'),
-<<<<<<< HEAD
     path('jokes/', views.jokeView, name='jokes'),
     path('motivation/', views.motivationView, name='motivation'),
-=======
     
->>>>>>> a7d983ff760f3645686ea062f7c5a21b144bfc45
 ]
