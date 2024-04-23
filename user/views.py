@@ -10,6 +10,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .utils import send_code_to_user,verify_otp
 
 
+from .models import OneTimePassword
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -27,6 +28,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Add custom claims
         token['user_id'] = user.id
         token['first_name'] = user.first_name
+        token['last_name'] = user.first_name
         token['email'] = user.email
         # ...
 
@@ -40,6 +42,9 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Add extra responses
         # Adds the user id to the response
         data.update({'user_id': self.user.id})
+        full_name = f"{self.user.first_name} {self.user.last_name}"
+        data.update({'full_name': full_name})
+        
 
         # Finally, the updated data dictionary is returned.
         return data
@@ -79,45 +84,54 @@ def changePassword(request):
 
 
 
+@api_view(['POST'])
+def code_verification(request):
+    if request.method == 'POST':
+        otp_code = request.data.get('code') # Extract the OTP code from the request data
+        if not otp_code:
+            # If OTP code is not provided, return a bad request response
+            return Response({'message': 'Passcode not provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Try to find a OneTimePassword object with the provided OTP code
+            user_code_obj = OneTimePassword.objects.get(code=otp_code)
+            user = user_code_obj.user
+            if not user.is_verified:
+                user.is_verified = True  # If the user is not verified, mark them as verified and save
+                user.save()
+                return Response({'message': 'Account email verified successfully'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'message': 'Code is invalid, user already verified'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        except OneTimePassword.DoesNotExist:
+            return Response({'message': 'Invalid passcode'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def code_verification(request):
-    serializer = VerificationCodeSerializer(data=request.data)
-    if serializer.is_valid():
-        code = serializer.validated_data['code']
-        user_email = request.user.email
+def resend_otp(request):
+    email = request.data.get('email')
+    if not email:
+        return Response({'error': 'Email parameter is missing'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if verify_otp(user_email, code):
-            return Response({'message': 'Code is valid', 'is_verified': True})
-        else:
-            return Response({'message': 'Invalid code or expired'}, status=400)
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    send_result = send_code_to_user(user.email)
+    if "Failed" in send_result:
+        return Response({'error': send_result}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # Assuming the send_code_to_user function returns a success message on success
+    if send_result == "OTP sent successfully":
+        return Response({'message': 'OTP sent successfully'}, status=status.HTTP_200_OK)
     else:
-        return Response(serializer.errors, status=400)
-
-
-
-
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def resend_verification_code(request):
-#     try:
-#         otp_instance = OneTimePassword.objects.get(user=request.user)
-#         # If an instance already exists, update the code and return
-#         new_code = generate_otp()
-#         otp_instance.code = new_code
-#         otp_instance.save()
-#     except OneTimePassword.DoesNotExist:
-#         # If no instance exists, create a new one
-#         new_code = generate_otp()
-#         otp_instance = OneTimePassword.objects.create(user=request.user, code=new_code)
-
-#     # Send email with new code
-#     if send_code_to_user(request.user.email, new_code):
-#         return Response({'message': 'New verification code sent successfully'})
-#     else:
-#         return Response({'message': 'Error sending new verification code'}, status=500)
+        # Handling any other unexpected response from the utility function
+        return Response({'error': 'An unexpected error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
